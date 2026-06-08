@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# 虚拟环境
+.venv/
+venv/
+env/
+
+# 测试 / 覆盖率
+.pytest_cache/
+.coverage
+htmlcov/
+
+# PyInstaller 构建产物
+build/
+dist/
+*.spec.bak
+
+# 日志
+logs/
+
+# IDE
+.vscode/
+.idea/
+
+# 系统文件
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# 待删除目录
+todel/
