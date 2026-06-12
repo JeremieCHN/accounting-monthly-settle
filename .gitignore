@@ -25,6 +25,10 @@ logs/
 .vscode/
 .idea/
 
+# Node
+node_modules/
+web/dist/
+
 # 系统文件
 Thumbs.db
 Desktop.ini
