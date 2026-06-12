@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
-import { Calculator, AlertTriangle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Calculator, AlertTriangle, HelpCircle } from 'lucide-react';
 import SourceTab from '@/components/SourceTab';
 import ResultTables from '@/components/ResultTables';
 import BatchDetail from '@/components/BatchDetail';
@@ -12,6 +13,7 @@ import { validateMapping } from '@/utils/columnMapper';
 const SOURCES: InputSource[] = ['inbound', 'opening', 'outbound'];
 
 export default function Home() {
+  const navigate = useNavigate();
   const { sources, calcResult, activeMainTab, setActiveMainTab, setCalcResult, setSelectedBatchMaterial } = useAppStore();
 
   const handleCalculate = useCallback(() => {
@@ -83,13 +85,22 @@ export default function Home() {
       {/* 顶部标题栏 */}
       <header className="bg-slate-800 text-white px-6 py-3 flex items-center justify-between shadow-md">
         <h1 className="text-lg font-semibold tracking-wide">月度汇算小工具</h1>
-        <button
-          onClick={handleCalculate}
-          className="inline-flex items-center gap-1.5 px-5 py-2 text-sm font-medium bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors shadow-sm"
-        >
-          <Calculator className="w-4 h-4" />
-          开始计算
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate('/help')}
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-300 hover:text-white rounded-md hover:bg-slate-700 transition-colors"
+          >
+            <HelpCircle className="w-4 h-4" />
+            帮助
+          </button>
+          <button
+            onClick={handleCalculate}
+            className="inline-flex items-center gap-1.5 px-5 py-2 text-sm font-medium bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors shadow-sm"
+          >
+            <Calculator className="w-4 h-4" />
+            开始计算
+          </button>
+        </div>
       </header>
 
       {/* Tab 栏 */}
