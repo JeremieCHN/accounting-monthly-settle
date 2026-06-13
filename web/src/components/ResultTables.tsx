@@ -60,6 +60,7 @@ export default function ResultTables() {
                   <th className="px-3 py-2 text-left font-medium">物料名称</th>
                   <th className="px-3 py-2 text-right font-medium">数量</th>
                   <th className="px-3 py-2 text-right font-medium">含税单价</th>
+                  <th className="px-3 py-2 text-right font-medium">不含税单价</th>
                   <th className="px-3 py-2 text-right font-medium">税率</th>
                   <th className="px-3 py-2 text-right font-medium">含税金额</th>
                 </tr>
@@ -77,6 +78,7 @@ export default function ResultTables() {
                     <td className="px-3 py-1.5 text-slate-700">{m.materialName}</td>
                     <td className="px-3 py-1.5 text-right tabular-nums text-slate-700">{fmt(m.closingQuantity)}</td>
                     <td className="px-3 py-1.5 text-right tabular-nums text-slate-700">{fmt(m.closingAvgPrice)}</td>
+                    <td className="px-3 py-1.5 text-right tabular-nums text-slate-700">{fmt(exTaxPrice(m.closingAvgPrice, m.closingTaxRate))}</td>
                     <td className="px-3 py-1.5 text-right tabular-nums text-slate-700">{m.closingTaxRate}</td>
                     <td className="px-3 py-1.5 text-right tabular-nums text-slate-700">{fmt(m.closingAmount)}</td>
                   </tr>
@@ -86,6 +88,7 @@ export default function ResultTables() {
                 <tr className="bg-slate-100 border-t-2 border-slate-300 font-semibold text-slate-800">
                   <td className="px-3 py-2">合计</td>
                   <td className="px-3 py-2 text-right tabular-nums">{fmt(totalClosingQty)}</td>
+                  <td className="px-3 py-2"></td>
                   <td className="px-3 py-2"></td>
                   <td className="px-3 py-2"></td>
                   <td className="px-3 py-2 text-right tabular-nums">{fmt(totalClosingAmount)}</td>
