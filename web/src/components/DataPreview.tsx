@@ -21,6 +21,14 @@ export default function DataPreview({ source }: DataPreviewProps) {
   }
 
   const anomalyRows = new Set(src.anomalies.map((a) => a.rowIndex));
+  // 预填条目行（日期为空）
+  const prefilledRows = new Set(
+    src.anomalies.filter((a) => a.rule === 'date_empty').map((a) => a.rowIndex),
+  );
+  // 退货行（数量为负）
+  const returnRows = new Set(
+    src.anomalies.filter((a) => a.rule === 'quantity_negative').map((a) => a.rowIndex),
+  );
 
   return (
     <div className="space-y-2">
@@ -44,14 +52,29 @@ export default function DataPreview({ source }: DataPreviewProps) {
           <tbody>
             {src.previewData.map((row, idx) => {
               const excelRow = src.headerRow + idx + 1;
-              const isAnomaly = anomalyRows.has(excelRow);
+              const isPrefilled = prefilledRows.has(excelRow);
+              const isReturn = returnRows.has(excelRow);
+              const isAnomaly = anomalyRows.has(excelRow) && !isPrefilled && !isReturn;
+
+              let rowBg = idx % 2 === 0 ? 'bg-white' : 'bg-slate-50';
+              let rowText = 'text-slate-700';
+              if (isPrefilled) {
+                rowBg = 'bg-blue-50';
+                rowText = 'text-blue-700';
+              } else if (isReturn) {
+                rowBg = 'bg-amber-50';
+                rowText = 'text-amber-700';
+              } else if (isAnomaly) {
+                rowBg = 'bg-red-50';
+                rowText = 'text-red-700';
+              }
 
               return (
                 <tr
                   key={idx}
                   className={`
-                    ${isAnomaly ? 'bg-red-50' : idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}
-                    ${isAnomaly ? 'text-red-700' : 'text-slate-700'}
+                    ${rowBg}
+                    ${rowText}
                   `}
                 >
                   <td className="px-2 py-1 text-slate-400">{excelRow}</td>
@@ -81,14 +104,30 @@ export default function DataPreview({ source }: DataPreviewProps) {
       </div>
 
       {src.anomalies.length > 0 && (
-        <div className="text-xs text-red-600 space-y-0.5">
-          {src.anomalies.slice(0, 5).map((a, i) => (
-            <p key={i}>
-              第{a.rowIndex}行 {a.column}: {a.label}
-            </p>
-          ))}
+        <div className="text-xs space-y-1">
+          {src.anomalies.slice(0, 5).map((a, i) => {
+            const colorClass =
+              a.rule === 'date_empty'
+                ? 'text-blue-600'
+                : a.rule === 'quantity_negative'
+                  ? 'text-amber-600'
+                  : 'text-red-600';
+            return (
+              <div key={i} className={`${colorClass} space-y-0.5`}>
+                <p>
+                  第{a.rowIndex}行 {a.column}: {a.label}
+                </p>
+                <p className="text-slate-500 pl-3">
+                  {a.participatesCalculation ? '✓ 参与计算' : '✗ 不参与计算'} — {a.handling}
+                </p>
+                <p className="text-orange-600 pl-3">
+                  ⚠ {a.consequence}
+                </p>
+              </div>
+            );
+          })}
           {src.anomalies.length > 5 && (
-            <p>...还有 {src.anomalies.length - 5} 条异常</p>
+            <p className="text-slate-500">...还有 {src.anomalies.length - 5} 条标记</p>
           )}
         </div>
       )}

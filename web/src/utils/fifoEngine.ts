@@ -38,7 +38,7 @@ export class FIFOEngine {
 
     for (const materialName of Array.from(allMaterials).sort()) {
       // 1. 构建批次队列
-      const batches = this.buildBatches(materialName, openingData, inboundData);
+      const [batches, batchWarnings] = this.buildBatches(materialName, openingData, inboundData);
 
       // 2. 汇总出库数量
       let outboundQty = 0;
@@ -63,18 +63,23 @@ export class FIFOEngine {
       const outboundAvgPrice = consumedQty > 0 ? round2(cost / consumedQty) : 0;
       const outboundAmount = round2(cost);
 
-      if (warns.length > 0) hasWarnings = true;
+      // 6. 确定物料税率（取第一个有效批次的税率，相同物料税率理当一致）
+      const taxRate = this.resolveTaxRate(remainingBatches, batches);
+
+      if (warns.length > 0 || batchWarnings.length > 0) hasWarnings = true;
 
       results.push({
         materialName,
         closingQuantity: round2(closingQty),
         closingAvgPrice: round2(closingAvgPrice),
         closingAmount: round2(closingAmount),
+        closingTaxRate: taxRate,
         outboundQuantity: round2(consumedQty),
         outboundAvgPrice,
         outboundAmount,
+        outboundTaxRate: taxRate,
         batches: remainingBatches,
-        warnings: warns,
+        warnings: [...batchWarnings, ...warns],
       });
     }
 
@@ -82,27 +87,47 @@ export class FIFOEngine {
   }
 
   /**
+   * 确定物料的税率
+   * 优先从剩余批次取，否则从原始批次取
+   */
+  private resolveTaxRate(remainingBatches: Batch[], originalBatches: Batch[]): number {
+    // 优先从剩余批次中找有税率的
+    for (const b of remainingBatches) {
+      if (b.taxRate > 0) return b.taxRate;
+    }
+    // 再从原始批次中找
+    for (const b of originalBatches) {
+      if (b.taxRate > 0) return b.taxRate;
+    }
+    return 0;
+  }
+
+  /**
    * 为指定物料构建入库批次队列
    * 1. 期初库存作为第一个批次
    * 2. 按进货日期升序，将入库记录逐条入队
-   *    - 数量为正：新增批次
-   *    - 数量为负（退货）：从队尾扣减
+   *    - 日期为空：预填条目，货还在路上，不参与当期汇算
+   *    - 数量为正：正常入库，新增批次
+   *    - 数量为负（退货）：从期初中扣除，期初不足则记录非法条目警告
    */
   private buildBatches(
     materialName: string,
     openingData: Record<string, unknown>[],
     inboundData: Record<string, unknown>[],
-  ): Batch[] {
+  ): [Batch[], string[]] {
     const batches: Batch[] = [];
+    const warnings: string[] = [];
 
     // 1a. 期初库存入队
     for (const row of openingData) {
       if (String(row.material) === materialName) {
         const qty = typeof row.quantity === 'number' ? row.quantity : 0;
         const price = typeof row.price === 'number' ? row.price : 0;
+        const taxRate = typeof row.taxRate === 'number' ? row.taxRate : 0;
         batches.push({
           quantity: qty,
           unitPrice: price,
+          taxRate,
           sourceType: '期初',
           sourceDate: null,
           originalQty: qty,
@@ -136,41 +161,46 @@ export class FIFOEngine {
     for (const record of sortedInbound) {
       const qty = typeof record.quantity === 'number' ? record.quantity : 0;
       const price = typeof record.price === 'number' ? record.price : 0;
+      const taxRate = typeof record.taxRate === 'number' ? record.taxRate : 0;
       const date = record.date;
       const dateStr = date != null && String(date).trim() !== '' ? String(date) : null;
 
+      // 日期为空：排最后入队，仍参与当期汇算
       if (qty >= 0) {
         // 正常入库：新增批次
         batches.push({
           quantity: qty,
           unitPrice: price,
+          taxRate,
           sourceType: '入库',
           sourceDate: dateStr,
           originalQty: qty,
           consumedQty: 0,
         });
       } else {
-        // 退货：从队尾扣减
-        let remaining = Math.abs(qty);
-        while (remaining > 0 && batches.length > 0) {
-          const last = batches[batches.length - 1];
-          if (remaining >= last.quantity) {
-            remaining -= last.quantity;
-            batches.pop();
+        // 退货：从期初中扣除
+        const returnQty = Math.abs(qty);
+        const openingBatch = batches.find(b => b.sourceType === '期初');
+        if (openingBatch) {
+          if (openingBatch.quantity < returnQty) {
+            warnings.push(
+              `物料 ${materialName} 退货数量(${returnQty})超过期初库存(${openingBatch.quantity})，为非法条目`,
+            );
           } else {
-            last.quantity -= remaining;
-            remaining = 0;
+            openingBatch.quantity -= returnQty;
           }
+        } else {
+          warnings.push(`物料 ${materialName} 无期初库存，无法处理退货数量(${returnQty})，为非法条目`);
         }
       }
     }
 
-    return batches;
+    return [batches, warnings];
   }
 
   /**
    * 从批次队列中消耗出库数量
-   * 返回: [剩余批次, 出库总成本, 出库总数量, 警告列表]
+   * 返回: [剩余批次, 出库总成本(含税), 出库总数量, 警告列表]
    */
   private consumeOutbound(
     batches: Batch[],
@@ -206,7 +236,7 @@ export class FIFOEngine {
 
   /**
    * 计算期末库存
-   * 返回: [总数量, 加权平均单价, 金额]
+   * 返回: [总数量, 加权平均含税单价, 含税金额]
    */
   private calcClosing(batches: Batch[]): [number, number, number] {
     const totalQty = batches.reduce((sum, b) => sum + b.quantity, 0);

@@ -55,7 +55,8 @@ export default function BatchDetail() {
                   <th className="px-2 py-1.5 text-right font-medium">原始数量</th>
                   <th className="px-2 py-1.5 text-right font-medium">消耗数量</th>
                   <th className="px-2 py-1.5 text-right font-medium">剩余数量</th>
-                  <th className="px-2 py-1.5 text-right font-medium">单价</th>
+                  <th className="px-2 py-1.5 text-right font-medium">含税单价</th>
+                  <th className="px-2 py-1.5 text-right font-medium">税率</th>
                 </tr>
               </thead>
               <tbody>
@@ -76,6 +77,7 @@ export default function BatchDetail() {
                       <td className="px-2 py-1 text-right tabular-nums">{fmt(batch.consumedQty)}</td>
                       <td className="px-2 py-1 text-right tabular-nums">{fmt(batch.quantity)}</td>
                       <td className="px-2 py-1 text-right tabular-nums">{fmt(batch.unitPrice)}</td>
+                      <td className="px-2 py-1 text-right tabular-nums">{batch.taxRate}</td>
                     </tr>
                   );
                 })}

@@ -21,7 +21,8 @@ export interface ColumnDef {
 /** 入库批次 */
 export interface Batch {
   quantity: number;
-  unitPrice: number;
+  unitPrice: number; // 含税单价
+  taxRate: number; // 税率
   sourceType: string; // "期初" | "入库"
   sourceDate: string | null;
   originalQty: number;
@@ -32,11 +33,13 @@ export interface Batch {
 export interface MaterialResult {
   materialName: string;
   closingQuantity: number;
-  closingAvgPrice: number;
-  closingAmount: number;
+  closingAvgPrice: number; // 含税单价
+  closingAmount: number; // 含税金额
+  closingTaxRate: number; // 税率
   outboundQuantity: number;
-  outboundAvgPrice: number;
-  outboundAmount: number;
+  outboundAvgPrice: number; // 含税单价
+  outboundAmount: number; // 含税金额
+  outboundTaxRate: number; // 税率
   batches: Batch[];
   warnings: string[];
 }
@@ -54,6 +57,9 @@ export interface AnomalyRecord {
   value: unknown;
   rule: string;
   label: string;
+  participatesCalculation: boolean;
+  handling: string;
+  consequence: string;
 }
 
 /** 统计信息 */

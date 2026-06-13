@@ -58,7 +58,7 @@ export function detectAnomalies(
   const anomalies: AnomalyRecord[] = [];
 
   // 获取适用于当前来源的规则
-  const applicableRules: Record<string, { key: string; condition: string; label: string }> = {};
+  const applicableRules: Record<string, { key: string; condition: string; label: string; participatesCalculation: boolean; handling: string; consequence: string }> = {};
   for (const [ruleId, rule] of Object.entries(ANOMALY_RULES)) {
     if (ANOMALY_SOURCE_APPLICABILITY[ruleId]?.includes(source)) {
       applicableRules[ruleId] = rule;
@@ -100,6 +100,9 @@ export function detectAnomalies(
           value,
           rule: ruleId,
           label: rule.label,
+          participatesCalculation: rule.participatesCalculation,
+          handling: rule.handling,
+          consequence: rule.consequence,
         });
       }
     }

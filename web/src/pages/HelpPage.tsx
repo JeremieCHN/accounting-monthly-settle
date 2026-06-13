@@ -36,14 +36,14 @@ export default function HelpPage() {
                 num={1}
                 title="上传入库记录"
                 icon={<FileSpreadsheet className="w-4 h-4" />}
-                description="切换到「入库记录」标签页，上传包含入库流水的 Excel 文件。入库记录需包含：进货日期、物料名称、数量、单价。"
-                tips={['支持 .xlsx 和 .xls 格式', '入库数量为负表示退货', '同一文件可包含多个 Sheet，需手动选择']}
+                description="切换到「入库记录」标签页，上传包含入库流水的 Excel 文件。入库记录需包含：进货日期、物料名称、数量、含税单价、税率。"
+                tips={['支持 .xlsx 和 .xls 格式', '入库数量为负表示退货，从期初库存中扣除', '日期为空的条目视为预填条目（货在途中），仍参与当期汇算，排最后入队', '同一文件可包含多个 Sheet，需手动选择']}
               />
               <Step
                 num={2}
                 title="上传期初库存"
                 icon={<FileSpreadsheet className="w-4 h-4" />}
-                description="切换到「期初库存」标签页，上传包含本月期初结存的 Excel 文件。期初库存需包含：物料名称、数量、单价。"
+                description="切换到「期初库存」标签页，上传包含本月期初结存的 Excel 文件。期初库存需包含：物料名称、数量、含税单价、税率。"
                 tips={['每种物料期初仅一条记录', '如无期初数据，仍需上传文件（可为空表）']}
               />
               <Step
@@ -68,10 +68,12 @@ export default function HelpPage() {
                 num={5}
                 title="预览数据"
                 icon={<Eye className="w-4 h-4" />}
-                description="列映射完成后，下方数据预览表格会展示映射后的数据。红色底色行表示异常数据，请检查确认。"
+                description="列映射完成后，下方数据预览表格会展示映射后的数据。不同颜色底色表示不同类型的标记，请检查确认。"
                 tips={[
-                  '异常类型包括：数量为负、日期为空、单价为 0',
-                  '异常行不会阻止计算，但建议核实数据',
+                  '蓝色底色：预填条目（日期为空，货在途中，仍参与当期汇算，排最后入队）',
+                  '黄色底色：退货（数量为负，从期初库存中扣除）',
+                  '红色底色：异常数据（如单价为 0）',
+                  '标记行不会阻止计算，但退货超过期初库存的非法条目会在计算结果中警告',
                 ]}
               />
               <Step
@@ -90,6 +92,8 @@ export default function HelpPage() {
                   '黄色高亮行表示该物料存在警告（如出库超库存）',
                   '批次明细可查看每种物料的 FIFO 消耗过程',
                   '导出文件包含「期末库存」和「出库成本」两个 Sheet',
+                  '期末库存列：物料名称、数量、含税单价、税率、含税金额',
+                  '出库成本列：物料、数量、税率、含税单价、不含税单价',
                 ]}
               />
             </div>
@@ -120,7 +124,7 @@ export default function HelpPage() {
                   <ul className="list-disc list-inside ml-5 mt-1 space-y-1 text-slate-500">
                     <li>进货日期升序（早的在前）</li>
                     <li>同日按 Excel 行号升序</li>
-                    <li>日期为空的记录排最后</li>
+                    <li>日期为空的记录视为<strong>预填条目</strong>（货在途中），仍参与当期汇算，排最后入队</li>
                   </ul>
                 </li>
               </ol>
@@ -129,8 +133,14 @@ export default function HelpPage() {
             {/* 退货处理 */}
             <RuleBlock title="退货处理">
               <p className="text-sm text-slate-600">
-                当入库数量为负数时，视为退货，从批次队列<strong>队尾</strong>开始扣减最近入库的批次。若退货数量超过可用库存，记录警告并继续处理。
+                当入库数量为负数时，视为退货，从<strong>期初库存</strong>中扣除。若退货数量超过期初库存，则为非法条目，工具会记录警告。
               </p>
+              <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-md flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+                <p className="text-sm text-amber-700">
+                  退货必须从期初库存中扣除。如果期初库存不足或不存在，该退货为非法条目，计算结果中会标记警告。
+                </p>
+              </div>
             </RuleBlock>
 
             {/* 出库消耗 */}
@@ -152,8 +162,9 @@ export default function HelpPage() {
                 <p>出库消耗后，批次队列中剩余的批次即为期末库存：</p>
                 <div className="bg-slate-50 border border-slate-200 rounded-md p-3 font-mono text-xs space-y-1">
                   <p>期末数量 = 剩余批次数量之和</p>
-                  <p>期末金额 = Σ(剩余批次数量 × 批次单价)</p>
-                  <p>加权平均单价 = 期末金额 / 期末数量</p>
+                  <p>期末含税金额 = Σ(剩余批次数量 × 批次含税单价)</p>
+                  <p>加权平均含税单价 = 期末含税金额 / 期末数量</p>
+                  <p>税率 = 该物料批次中的税率（相同物料税率理当一致）</p>
                 </div>
               </div>
             </RuleBlock>
@@ -164,8 +175,9 @@ export default function HelpPage() {
                 <p>出库消耗的批次构成出库成本：</p>
                 <div className="bg-slate-50 border border-slate-200 rounded-md p-3 font-mono text-xs space-y-1">
                   <p>出库数量 = 出库记录中该物料的数量合计</p>
-                  <p>出库金额 = Σ(消耗批次数量 × 批次单价)</p>
-                  <p>加权平均单价 = 出库金额 / 出库数量</p>
+                  <p>出库含税金额 = Σ(消耗批次数量 × 批次含税单价)</p>
+                  <p>加权平均含税单价 = 出库含税金额 / 出库数量</p>
+                  <p>不含税单价 = 含税单价 / (1 + 税率)</p>
                 </div>
               </div>
             </RuleBlock>
@@ -191,13 +203,15 @@ export default function HelpPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      <tr><td className="px-3 py-1.5 border-b border-slate-100" rowSpan={4}>入库记录</td><td className="px-3 py-1.5 border-b border-slate-100">进货日期</td><td className="px-3 py-1.5 border-b border-slate-100 text-slate-500">进货日期、日期、入库日期</td></tr>
+                      <tr><td className="px-3 py-1.5 border-b border-slate-100" rowSpan={5}>入库记录</td><td className="px-3 py-1.5 border-b border-slate-100">进货日期</td><td className="px-3 py-1.5 border-b border-slate-100 text-slate-500">进货日期、日期、入库日期</td></tr>
                       <tr><td className="px-3 py-1.5 border-b border-slate-100">物料名称</td><td className="px-3 py-1.5 border-b border-slate-100 text-slate-500">物料名称、物料、品名</td></tr>
                       <tr><td className="px-3 py-1.5 border-b border-slate-100">数量</td><td className="px-3 py-1.5 border-b border-slate-100 text-slate-500">数量、入库数量</td></tr>
-                      <tr><td className="px-3 py-1.5 border-b border-slate-100">单价</td><td className="px-3 py-1.5 border-b border-slate-100 text-slate-500">单价、入库单价</td></tr>
-                      <tr><td className="px-3 py-1.5 border-b border-slate-100" rowSpan={3}>期初库存</td><td className="px-3 py-1.5 border-b border-slate-100">物料名称</td><td className="px-3 py-1.5 border-b border-slate-100 text-slate-500">物料名称、物料、品名</td></tr>
+                      <tr><td className="px-3 py-1.5 border-b border-slate-100">含税单价</td><td className="px-3 py-1.5 border-b border-slate-100 text-slate-500">含税单价、单价、入库单价</td></tr>
+                      <tr><td className="px-3 py-1.5 border-b border-slate-100">税率</td><td className="px-3 py-1.5 border-b border-slate-100 text-slate-500">税率、税</td></tr>
+                      <tr><td className="px-3 py-1.5 border-b border-slate-100" rowSpan={4}>期初库存</td><td className="px-3 py-1.5 border-b border-slate-100">物料名称</td><td className="px-3 py-1.5 border-b border-slate-100 text-slate-500">物料名称、物料、品名</td></tr>
                       <tr><td className="px-3 py-1.5 border-b border-slate-100">数量</td><td className="px-3 py-1.5 border-b border-slate-100 text-slate-500">数量、期初数量</td></tr>
-                      <tr><td className="px-3 py-1.5 border-b border-slate-100">单价</td><td className="px-3 py-1.5 border-b border-slate-100 text-slate-500">单价、期初单价</td></tr>
+                      <tr><td className="px-3 py-1.5 border-b border-slate-100">含税单价</td><td className="px-3 py-1.5 border-b border-slate-100 text-slate-500">含税单价、单价、期初单价</td></tr>
+                      <tr><td className="px-3 py-1.5 border-b border-slate-100">税率</td><td className="px-3 py-1.5 border-b border-slate-100 text-slate-500">税率、税</td></tr>
                       <tr><td className="px-3 py-1.5" rowSpan={2}>出库记录</td><td className="px-3 py-1.5">物料名称</td><td className="px-3 py-1.5 text-slate-500">物料名称、物料、品名</td></tr>
                       <tr><td className="px-3 py-1.5">数量</td><td className="px-3 py-1.5 text-slate-500">数量、出库数量</td></tr>
                     </tbody>
@@ -207,36 +221,58 @@ export default function HelpPage() {
             </RuleBlock>
 
             {/* 异常检测 */}
-            <RuleBlock title="异常检测规则">
+            <RuleBlock title="数据标记规则">
               <div className="text-sm text-slate-600 space-y-2">
-                <p>数据预览中，以下情况会被标记为异常（红色底色高亮）：</p>
+                <p>数据预览中，以下情况会被标记并以不同颜色高亮：</p>
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs border border-slate-200 rounded-md overflow-hidden">
                     <thead>
                       <tr className="bg-slate-100">
-                        <th className="px-3 py-2 text-left font-semibold text-slate-700 border-b border-slate-200">异常类型</th>
+                        <th className="px-3 py-2 text-left font-semibold text-slate-700 border-b border-slate-200">标记类型</th>
                         <th className="px-3 py-2 text-left font-semibold text-slate-700 border-b border-slate-200">检测条件</th>
+                        <th className="px-3 py-2 text-left font-semibold text-slate-700 border-b border-slate-200">高亮颜色</th>
                         <th className="px-3 py-2 text-left font-semibold text-slate-700 border-b border-slate-200">适用来源</th>
+                        <th className="px-3 py-2 text-left font-semibold text-slate-700 border-b border-slate-200">参与计算</th>
+                        <th className="px-3 py-2 text-left font-semibold text-slate-700 border-b border-slate-200">处理方式</th>
+                        <th className="px-3 py-2 text-left font-semibold text-slate-700 border-b border-slate-200">后果</th>
                       </tr>
                     </thead>
                     <tbody>
                       <tr>
-                        <td className="px-3 py-1.5 border-b border-slate-100">数量为负</td>
-                        <td className="px-3 py-1.5 border-b border-slate-100">数量列值 &lt; 0</td>
-                        <td className="px-3 py-1.5 border-b border-slate-100">入库记录、期初库存、出库记录</td>
-                      </tr>
-                      <tr>
-                        <td className="px-3 py-1.5 border-b border-slate-100">日期为空</td>
+                        <td className="px-3 py-1.5 border-b border-slate-100">预填条目</td>
                         <td className="px-3 py-1.5 border-b border-slate-100">进货日期列为空</td>
+                        <td className="px-3 py-1.5 border-b border-slate-100"><span className="inline-block w-3 h-3 rounded bg-blue-200 align-middle mr-1" />蓝色</td>
                         <td className="px-3 py-1.5 border-b border-slate-100">入库记录</td>
+                        <td className="px-3 py-1.5 border-b border-slate-100">是</td>
+                        <td className="px-3 py-1.5 border-b border-slate-100">排最后入队，仍参与当期汇算</td>
+                        <td className="px-3 py-1.5 border-b border-slate-100 text-orange-600">该批次会被最后消耗，可能影响FIFO顺序和成本分摊</td>
                       </tr>
                       <tr>
-                        <td className="px-3 py-1.5">单价为 0</td>
-                        <td className="px-3 py-1.5">单价列值 = 0</td>
+                        <td className="px-3 py-1.5 border-b border-slate-100">退货</td>
+                        <td className="px-3 py-1.5 border-b border-slate-100">数量列值 &lt; 0</td>
+                        <td className="px-3 py-1.5 border-b border-slate-100"><span className="inline-block w-3 h-3 rounded bg-amber-200 align-middle mr-1" />黄色</td>
+                        <td className="px-3 py-1.5 border-b border-slate-100">入库记录、期初库存、出库记录</td>
+                        <td className="px-3 py-1.5 border-b border-slate-100">是</td>
+                        <td className="px-3 py-1.5 border-b border-slate-100">从期初库存中扣除退货数量</td>
+                        <td className="px-3 py-1.5 border-b border-slate-100 text-orange-600">若退货超过期初库存，则为非法条目，计算结果中会标记警告</td>
+                      </tr>
+                      <tr>
+                        <td className="px-3 py-1.5">含税单价为 0</td>
+                        <td className="px-3 py-1.5">含税单价列值 = 0</td>
+                        <td className="px-3 py-1.5"><span className="inline-block w-3 h-3 rounded bg-red-200 align-middle mr-1" />红色</td>
                         <td className="px-3 py-1.5">入库记录、期初库存</td>
+                        <td className="px-3 py-1.5">是</td>
+                        <td className="px-3 py-1.5">以0单价入队参与计算</td>
+                        <td className="px-3 py-1.5 text-orange-600">该批次成本为0，会拉低加权平均单价，导致成本失真</td>
                       </tr>
                     </tbody>
                   </table>
+                </div>
+                <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-md flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+                  <p className="text-sm text-amber-700">
+                    退货数量超过期初库存的非法条目，在计算结果中会标记警告（黄色高亮）。
+                  </p>
                 </div>
               </div>
             </RuleBlock>
@@ -268,7 +304,11 @@ export default function HelpPage() {
             />
             <FAQ
               q="退货怎么处理？"
-              a="在入库记录中，数量为负的行视为退货。退货会从最近入库的批次（队尾）开始扣减。"
+              a="在入库记录中，数量为负的行视为退货。退货会从期初库存中扣除，如果退货数量超过期初库存，则为非法条目，计算结果中会标记警告。"
+            />
+            <FAQ
+              q="日期为空的入库记录怎么处理？"
+              a="日期为空的入库记录视为预填条目（货在途中），仍参与当期汇算，排最后入队。这些记录在数据预览中以蓝色底色标记。补填日期后，下次汇算时将按实际日期排序入队。"
             />
             <FAQ
               q="数据安全吗？"

@@ -89,7 +89,7 @@
   - `consumeOutbound(batches, outboundQty, materialName): [Batch[], number, number, string[]]`
   - `calcClosing(batches): [number, number, number]`
 - 期初库存作为第一个批次入队
-- 入库记录按（日期升序，行号升序）入队，数量为负视为退货从队尾扣减
+- 入库记录按（日期升序，行号升序）入队，日期为空排最后仍参与汇算，数量为负视为退货从队尾扣减
 - 出库从队首消耗，出库超过库存时记录警告
 - 期末库存 = 剩余批次加权平均，出库成本 = 消耗批次加权平均
 
